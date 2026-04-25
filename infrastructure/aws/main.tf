@@ -22,17 +22,89 @@ locals {
       enabled               = route.enabled
     }
   }
+
+  modeled_routes = {
+    gtd_inbound = {
+      name                   = "gtd-inbound"
+      recipients             = ["parse.namasteapp.tech"]
+      enabled                = true
+      scan_enabled           = true
+      tls_policy             = "Optional"
+      s3_bucket_name         = "gtd-ses-emails"
+      s3_object_key_prefix   = ""
+      lambda_function_arn    = "arn:aws:lambda:ap-southeast-2:352311918919:function:gtd-ses-forwarder"
+      lambda_invocation_type = "Event"
+      s3_position            = 1
+      lambda_position        = 2
+    }
+
+    music_submission = {
+      name                   = "music-submission"
+      recipients             = ["parse.lushauraltreats.com"]
+      enabled                = true
+      scan_enabled           = true
+      tls_policy             = "Optional"
+      s3_bucket_name         = "lush-aural-treats-ses-emails"
+      s3_object_key_prefix   = ""
+      lambda_function_arn    = "arn:aws:lambda:ap-southeast-2:352311918919:function:lush-aural-treats-ses-forwarder"
+      lambda_invocation_type = "Event"
+      s3_position            = 1
+      lambda_position        = 2
+    }
+  }
 }
 
-# Future module usage, intentionally disabled until existing live SES state has
-# been imported or moved.
-#
-# terraform-modules tag 1.5.0 includes the first low-risk SES primitives.
-#
+# Model-only: these modules describe the live shared SES receipt rule set, but
+# shared-ses-infra does not own Terraform state for them yet. Applying before
+# import/state migration would attempt to create existing SES resources.
+module "ses_receipt_rule_set" {
+  source = "github.com/jch254/terraform-modules//ses-receipt-rule-set?ref=1.6.0"
+
+  name     = "shared-inbound-mail-rules"
+  activate = false
+}
+
+module "gtd_inbound_rule" {
+  source = "github.com/jch254/terraform-modules//ses-receipt-rule?ref=1.6.0"
+
+  name                   = local.modeled_routes.gtd_inbound.name
+  rule_set_name          = module.ses_receipt_rule_set.name
+  recipients             = local.modeled_routes.gtd_inbound.recipients
+  enabled                = local.modeled_routes.gtd_inbound.enabled
+  scan_enabled           = local.modeled_routes.gtd_inbound.scan_enabled
+  tls_policy             = local.modeled_routes.gtd_inbound.tls_policy
+  s3_bucket_name         = local.modeled_routes.gtd_inbound.s3_bucket_name
+  s3_object_key_prefix   = local.modeled_routes.gtd_inbound.s3_object_key_prefix
+  lambda_function_arn    = local.modeled_routes.gtd_inbound.lambda_function_arn
+  lambda_invocation_type = local.modeled_routes.gtd_inbound.lambda_invocation_type
+  s3_position            = local.modeled_routes.gtd_inbound.s3_position
+  lambda_position        = local.modeled_routes.gtd_inbound.lambda_position
+}
+
+module "music_submission_rule" {
+  source = "github.com/jch254/terraform-modules//ses-receipt-rule?ref=1.6.0"
+
+  name                   = local.modeled_routes.music_submission.name
+  rule_set_name          = module.ses_receipt_rule_set.name
+  recipients             = local.modeled_routes.music_submission.recipients
+  enabled                = local.modeled_routes.music_submission.enabled
+  scan_enabled           = local.modeled_routes.music_submission.scan_enabled
+  tls_policy             = local.modeled_routes.music_submission.tls_policy
+  s3_bucket_name         = local.modeled_routes.music_submission.s3_bucket_name
+  s3_object_key_prefix   = local.modeled_routes.music_submission.s3_object_key_prefix
+  lambda_function_arn    = local.modeled_routes.music_submission.lambda_function_arn
+  lambda_invocation_type = local.modeled_routes.music_submission.lambda_invocation_type
+  after                  = module.gtd_inbound_rule.name
+  s3_position            = local.modeled_routes.music_submission.s3_position
+  lambda_position        = local.modeled_routes.music_submission.lambda_position
+}
+
+# Future identity/DNS module usage remains disabled until existing live SES and
+# Cloudflare state has been imported or moved.
 # module "parse_domain_identity" {
 #   for_each = local.enabled_routes
 #
-#   source = "github.com/jch254/terraform-modules//ses-domain-identity?ref=1.5.0"
+#   source = "github.com/jch254/terraform-modules//ses-domain-identity?ref=1.6.0"
 #
 #   domain = each.value.parse_domain
 #   tags = {
@@ -40,7 +112,3 @@ locals {
 #     App         = each.value.app_name
 #   }
 # }
-#
-# Receipt rule sets, active receipt rule sets, raw mail buckets, and forwarder
-# Lambdas are deliberately not scaffolded in this pass. Add those only after the
-# live active SES rule set and product-owned resources are fully modelled.

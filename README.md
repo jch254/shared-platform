@@ -2,7 +2,7 @@
 
 Future owner repo for shared SES inbound routing in the shared AWS account.
 
-This repository is intentionally scaffold-only right now. It defines the Terraform root layout, route contracts, migration guardrails, and future module usage shape. It must not be applied to live SES or Cloudflare resources until the existing Namaste and Lush state has been modelled and imported or moved safely.
+This repository is in a model-only phase right now. It defines the Terraform root layout, route contracts, migration guardrails, and the live shared SES receipt rule model. It must not be applied to live SES or Cloudflare resources until the existing Namaste and Lush state has been imported or moved safely.
 
 ## Why This Exists
 
@@ -34,9 +34,16 @@ infrastructure/
 
 AWS and Cloudflare roots remain separate. The AWS root should produce SES identity and route outputs later; the Cloudflare root should consume those values explicitly or via remote state when DNS ownership is migrated.
 
-## Current Scaffold Status
+## Current Model Status
 
-No live resources are created by this scaffold.
+The AWS root now models the live `shared-inbound-mail-rules` receipt rule set with `terraform-modules` `1.6.0`.
+
+Modeled routes:
+
+- `gtd-inbound` for `parse.namasteapp.tech`, storing raw mail in `gtd-ses-emails` and invoking `gtd-ses-forwarder`
+- `music-submission` for `parse.lushauraltreats.com`, storing raw mail in `lush-aural-treats-ses-emails` and invoking `lush-aural-treats-ses-forwarder`
+
+This is not state ownership yet. Before imports or state moves, a plan is expected to show create actions for the rule set and rules because shared-ses-infra does not own those live resources in Terraform state. That plan is review evidence only and is not safe to apply.
 
 The current Terraform roots contain:
 
@@ -44,18 +51,19 @@ The current Terraform roots contain:
 - typed variables
 - locals
 - outputs
-- commented future module examples
+- model-only SES receipt rule modules
+- commented future identity/DNS module examples
 - empty `moved.tf` files for later state-safe migrations
 
-They do not contain:
+They do not contain or manage:
 
-- `aws_ses_receipt_rule`
-- `aws_ses_receipt_rule_set`
 - `aws_ses_active_receipt_rule_set`
 - SES identities
 - S3 buckets
 - Lambda forwarders
 - Cloudflare DNS records
+
+`activate` remains `false` on the modeled receipt rule set until state ownership and stop conditions are satisfied. The next step is import/state ownership planning, not apply. Namaste and Lush parser endpoints, parser authentication, product behavior, and forwarder implementation details remain app-local.
 
 ## Later Verification Commands
 
