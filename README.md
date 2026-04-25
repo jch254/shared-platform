@@ -45,6 +45,10 @@ Modeled routes:
 
 The receipt rule set and receipt rules have been imported into the shared-ses-infra AWS Terraform state. A clean plan is required before any future apply.
 
+The legacy Namaste `ses-router` root at `namaste/infrastructure/terraform/ses-router` has been retired: its `removed { destroy = false }` blocks for the regional rule set, both route rules, and the active-rule-set selector were applied successfully (0 added / 0 changed / 0 destroyed). Its `terraform state list` is now empty, and shared-ses-infra is the single Terraform owner of `shared-inbound-mail-rules`, `gtd-inbound`, and `music-submission`. Live SES was unchanged by the retirement. See [PRODUCT_ROOT_SES_STATE_INSPECTION.md](PRODUCT_ROOT_SES_STATE_INSPECTION.md) for the full inspection-and-retirement record.
+
+Active receipt rule set activation is intentionally unmanaged by Terraform in either repo for now. The active selector currently points at `shared-inbound-mail-rules`; adopting `aws_ses_active_receipt_rule_set` into shared-ses-infra is a separate reviewed change to be sequenced later.
+
 The current Terraform roots contain:
 
 - providers
@@ -97,14 +101,27 @@ Future migration work:
 - decide whether raw buckets, bucket policies, Lambda permissions, and forwarders remain app-local or move into shared modules
 - remove or retire product-local duplicate receipt rule/rule-set resources after a reviewed state plan
 
-## Later Verification Commands
+## Verification Commands
 
-Before any real migration or apply:
+To confirm shared-ses-infra ownership is intact and live SES is healthy:
 
 ```bash
 cd infrastructure/aws
 terraform plan -input=false -no-color
+# expected: No changes. Your infrastructure matches the configuration.
+
 aws ses describe-active-receipt-rule-set --region ap-southeast-2
+# expected: active rule set "shared-inbound-mail-rules" with rules
+# "gtd-inbound" (recipient parse.namasteapp.tech, S3 gtd-ses-emails,
+# Lambda gtd-ses-forwarder, invocation Event) and "music-submission"
+# (recipient parse.lushauraltreats.com, S3 lush-aural-treats-ses-emails,
+# Lambda lush-aural-treats-ses-forwarder, invocation Event), both enabled
+# with scan enabled and TLS Optional.
+```
+
+Optional DNS sanity:
+
+```bash
 dig MX parse.namasteapp.tech
 dig MX parse.lushauraltreats.com
 ```

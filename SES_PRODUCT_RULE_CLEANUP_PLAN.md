@@ -1,5 +1,11 @@
 # SES Product Rule Cleanup Plan
 
+## Status update
+
+The Namaste legacy `ses-router` state has been retired. `removed { destroy = false }` blocks for `aws_ses_receipt_rule_set.regional`, `aws_ses_receipt_rule.namaste`, `aws_ses_receipt_rule.lush`, and `aws_ses_active_receipt_rule_set.regional` were applied successfully (0 added / 0 changed / 0 destroyed). The legacy root's `terraform state list` is empty, its plan is clean, shared-ses-infra is the single Terraform owner of `shared-inbound-mail-rules`, `gtd-inbound`, and `music-submission`, and live SES was unchanged. `aws_ses_active_receipt_rule_set` is intentionally unmanaged by Terraform in either repo for now. See [PRODUCT_ROOT_SES_STATE_INSPECTION.md](PRODUCT_ROOT_SES_STATE_INSPECTION.md) for the inspection-and-retirement record.
+
+The next cleanup window covers the inactive product-local duplicates (`gtd-rules` in Namaste-AWS root, `lush-aural-treats-rules` in Lush root). Sections below describing the `ses-router` root as still active are preserved as historical context; the future-commands section for that root no longer applies.
+
 ## Executive summary
 
 `shared-ses-infra` now owns the live shared SES receipt rule set and the two live route rules:

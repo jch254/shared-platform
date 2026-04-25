@@ -1,6 +1,28 @@
 # Product Root SES State Inspection
 
-Read-only inspection of Namaste and Lush product Terraform roots to confirm SES receipt rule / rule-set ownership before any cleanup pass. No config, state, or live resources were modified.
+Read-only inspection of Namaste and Lush product Terraform roots to confirm SES receipt rule / rule-set ownership before any cleanup pass. No config, state, or live resources were modified during the original inspection.
+
+## Update — Namaste `ses-router` retirement applied
+
+The split-ownership conflict described as the critical finding below has been resolved. In `namaste/infrastructure/terraform/ses-router`, the four resource blocks were replaced with `removed { destroy = false }` blocks for `aws_ses_receipt_rule_set.regional`, `aws_ses_receipt_rule.namaste`, `aws_ses_receipt_rule.lush`, and `aws_ses_active_receipt_rule_set.regional`, and the change was applied:
+
+```text
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+```
+
+Post-apply state of the world:
+
+- `terraform state list` in the legacy ses-router root is empty.
+- ses-router `terraform plan` returns "No changes."
+- shared-ses-infra `terraform plan` returns "No changes." and remains the single Terraform owner of `shared-inbound-mail-rules`, `gtd-inbound`, and `music-submission`.
+- Live SES re-verified after apply: active rule set `shared-inbound-mail-rules`, both routes still enabled, recipients/buckets/Lambdas/action order/scan/TLS/invocation all unchanged.
+- `aws_ses_active_receipt_rule_set` is now intentionally unmanaged by Terraform in either repo. Adopting it into shared-ses-infra is a separate reviewed change.
+
+Step 5 of the recommended sequencing below ("Namaste-AWS-root and Lush-AWS-root removed-block work for the inactive `gtd-rules` / `lush-aural-treats-rules` duplicates") is now unblocked.
+
+The original findings are preserved unchanged below as the historical record of the inspection.
+
+---
 
 ## Executive summary
 
@@ -71,7 +93,7 @@ State contains:
 
 Plan (`-input=false -no-color -var-file=environments/prod/terraform.tfvars`, full refresh allowed):
 
-```
+```text
 No changes. Your infrastructure matches the configuration.
 ```
 
