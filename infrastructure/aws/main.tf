@@ -2,7 +2,14 @@ provider "aws" {
   region = var.ses_region
 }
 
+provider "aws" {
+  alias  = "build_notifier"
+  region = local.build_notifier_region
+}
+
 locals {
+  build_notifier_region = coalesce(var.build_notifier_region, var.aws_region)
+
   enabled_routes = {
     for key, route in var.routes : key => route
     if route.enabled
@@ -95,6 +102,18 @@ module "music_submission_rule" {
   lambda_invocation_type = local.modeled_routes.music_submission.lambda_invocation_type
   s3_position            = local.modeled_routes.music_submission.s3_position
   lambda_position        = local.modeled_routes.music_submission.lambda_position
+}
+
+module "build_notifier" {
+  source = "github.com/jch254/terraform-modules//build-notifier?ref=1.8.1"
+
+  providers = {
+    aws = aws.build_notifier
+  }
+
+  name               = "shared-platform"
+  environment        = var.environment
+  notification_email = var.build_notification_email
 }
 
 # Future identity/DNS module usage remains disabled until existing live SES and

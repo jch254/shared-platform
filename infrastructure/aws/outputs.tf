@@ -13,6 +13,26 @@ output "environment" {
   value       = var.environment
 }
 
+output "build_notifier_region" {
+  description = "AWS region where the shared CodeBuild notifier is deployed."
+  value       = local.build_notifier_region
+}
+
+output "build_notification_topic_arn" {
+  description = "SNS topic ARN for shared CodeBuild notifications."
+  value       = module.build_notifier.sns_topic_arn
+}
+
+output "build_notification_lambda_function_arn" {
+  description = "Shared CodeBuild notification formatter Lambda function ARN."
+  value       = module.build_notifier.lambda_function_arn
+}
+
+output "build_notification_lambda_function_name" {
+  description = "Shared CodeBuild notification formatter Lambda function name."
+  value       = module.build_notifier.lambda_function_name
+}
+
 output "route_keys" {
   description = "All configured route keys."
   value       = keys(var.routes)

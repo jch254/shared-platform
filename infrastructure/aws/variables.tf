@@ -16,6 +16,17 @@ variable "environment" {
   default     = "prod"
 }
 
+variable "build_notifier_region" {
+  description = "AWS region where the shared CodeBuild notification EventBridge rule and Lambda are deployed. Defaults to aws_region. This should match the region of registered CodeBuild projects."
+  type        = string
+  default     = null
+}
+
+variable "build_notification_email" {
+  description = "Email address subscribed to shared CodeBuild success/failure notifications."
+  type        = string
+}
+
 variable "routes" {
   description = "Shared SES inbound route model keyed by stable app route key."
   type = map(object({

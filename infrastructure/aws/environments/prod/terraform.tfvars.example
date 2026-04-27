@@ -2,6 +2,8 @@ aws_region  = "ap-southeast-4"
 ses_region  = "ap-southeast-2"
 environment = "prod"
 
+build_notification_email = "jordan@jch254.com"
+
 routes = {
   namaste = {
     app_name                    = "namaste"

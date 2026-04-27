@@ -1,18 +1,19 @@
-# shared-ses-infra
+# shared-platform
 
-Owner repo for shared SES inbound routing in the shared AWS account.
+Owner repo for shared account-level platform infrastructure.
 
-This repository owns the shared SES receipt rule set and receipt rules for inbound routing. It also defines the Terraform root layout, route contracts, and migration guardrails for future SES and DNS ownership.
+This repository owns the shared SES receipt rule set and receipt rules for inbound routing, plus account-level CodeBuild build notifications. It also defines the Terraform root layout, route contracts, and migration guardrails for future shared platform ownership.
 
 ## Why This Exists
 
 Amazon SES has one active receipt rule set per AWS account and region. Namaste and Lush both receive inbound email in `ap-southeast-2`, so a product-local active rule set can accidentally remove the other app's route.
 
-This repo is the shared SES routing boundary for:
+This repo is the shared platform boundary for:
 
 - `parse.namasteapp.tech`
 - `parse.lushauraltreats.com`
 - future `parse.<domain>` inbound domains
+- the shared CodeBuild success/failure notifier
 
 Namaste and Lush are included only at the SES routing boundary. Their app parser endpoints, authentication, allowlists, task or album creation, confirmation emails, retry behavior, outbound email providers, and product logic remain app-local.
 
@@ -38,16 +39,24 @@ AWS and Cloudflare roots remain separate. The AWS root should produce SES identi
 
 The AWS root owns the live `shared-inbound-mail-rules` receipt rule set and receipt rules with `terraform-modules` `1.6.0`.
 
+It also deploys the shared account-level build notifier core with `terraform-modules` `1.8.1`:
+
+- SNS topic and email subscription for CodeBuild notifications
+- Lambda formatter for build success/failure events
+- outputs for app repos to target with their own EventBridge rules
+
+App repos opt in by creating their own EventBridge rule and Lambda permission with `build-notifier-project-subscription`. `reference-architecture` is the first app wired this way. Namaste and Lush remain on their local notifiers until their own follow-up migration passes.
+
 Modeled routes:
 
 - `gtd-inbound` for `parse.namasteapp.tech`, storing raw mail in `gtd-ses-emails` and invoking `gtd-ses-forwarder`
 - `music-submission` for `parse.lushauraltreats.com`, storing raw mail in `lush-aural-treats-ses-emails` and invoking `lush-aural-treats-ses-forwarder`
 
-The receipt rule set and receipt rules have been imported into the shared-ses-infra AWS Terraform state. A clean plan is required before any future apply.
+The receipt rule set and receipt rules have been imported into the shared-platform AWS Terraform state. A clean plan is required before any future apply.
 
-The legacy Namaste `ses-router` root at `namaste/infrastructure/terraform/ses-router` has been retired: its `removed { destroy = false }` blocks for the regional rule set, both route rules, and the active-rule-set selector were applied successfully (0 added / 0 changed / 0 destroyed). Its `terraform state list` is now empty, and shared-ses-infra is the single Terraform owner of `shared-inbound-mail-rules`, `gtd-inbound`, and `music-submission`. Live SES was unchanged by the retirement. See [PRODUCT_ROOT_SES_STATE_INSPECTION.md](PRODUCT_ROOT_SES_STATE_INSPECTION.md) for the full inspection-and-retirement record.
+The legacy Namaste `ses-router` root at `namaste/infrastructure/terraform/ses-router` has been retired: its `removed { destroy = false }` blocks for the regional rule set, both route rules, and the active-rule-set selector were applied successfully (0 added / 0 changed / 0 destroyed). Its `terraform state list` is now empty, and shared-platform is the single Terraform owner of `shared-inbound-mail-rules`, `gtd-inbound`, and `music-submission`. Live SES was unchanged by the retirement. See [PRODUCT_ROOT_SES_STATE_INSPECTION.md](PRODUCT_ROOT_SES_STATE_INSPECTION.md) for the full inspection-and-retirement record.
 
-Active receipt rule set activation is intentionally unmanaged by Terraform in either repo for now. The active selector currently points at `shared-inbound-mail-rules`; adopting `aws_ses_active_receipt_rule_set` into shared-ses-infra is a separate reviewed change to be sequenced later.
+Active receipt rule set activation is intentionally unmanaged by Terraform in either repo for now. The active selector currently points at `shared-inbound-mail-rules`; adopting `aws_ses_active_receipt_rule_set` into shared-platform is a separate reviewed change to be sequenced later.
 
 The current Terraform roots contain:
 
@@ -74,11 +83,12 @@ They do not contain or manage:
 
 ## Ownership Boundary
 
-shared-ses-infra owns:
+shared-platform owns:
 
 - `aws_ses_receipt_rule_set` `shared-inbound-mail-rules`
 - `aws_ses_receipt_rule` `gtd-inbound`
 - `aws_ses_receipt_rule` `music-submission`
+- the shared `shared-platform-build-notifications` SNS topic and formatter Lambda for CodeBuild project notifications
 
 Namaste and Lush product stacks must not apply product-local receipt rule or receipt rule set changes that conflict with `shared-inbound-mail-rules`. In particular, do not reactivate product-only rule sets such as `gtd-rules` or `lush-aural-treats-rules` while this shared account routes both apps through `shared-inbound-mail-rules`.
 
@@ -95,7 +105,8 @@ Still app-local unless migrated separately:
 
 Future migration work:
 
-- decide whether shared-ses-infra should later manage `aws_ses_active_receipt_rule_set`
+- decide whether shared-platform should later manage `aws_ses_active_receipt_rule_set`
+- migrate Namaste and Lush CodeBuild projects onto app-owned subscriptions targeting the shared build notifier, then remove their product-local notifier resources
 - migrate or import parse-domain SES identities/DKIM only after state ownership is planned
 - migrate or import parse-domain DNS records only after Cloudflare ownership is planned
 - decide whether raw buckets, bucket policies, Lambda permissions, and forwarders remain app-local or move into shared modules
@@ -103,12 +114,13 @@ Future migration work:
 
 ## Verification Commands
 
-To confirm shared-ses-infra ownership is intact and live SES is healthy:
+To confirm shared-platform ownership is intact and live SES is healthy:
 
 ```bash
 cd infrastructure/aws
 terraform plan -input=false -no-color
-# expected: No changes. Your infrastructure matches the configuration.
+# expected: shared build notifier changes only during the first notifier rollout;
+# after apply, no changes.
 
 aws ses describe-active-receipt-rule-set --region ap-southeast-2
 # expected: active rule set "shared-inbound-mail-rules" with rules
@@ -132,14 +144,14 @@ Plan commands once backend configuration exists:
 cd infrastructure/aws
 terraform init \
   -backend-config "bucket=${REMOTE_STATE_BUCKET}" \
-  -backend-config "key=shared-ses-infra/aws" \
+  -backend-config "key=shared-platform/aws" \
   -backend-config "region=${AWS_DEFAULT_REGION}"
 terraform plan -var-file=environments/prod/terraform.tfvars
 
 cd ../cloudflare
 terraform init \
   -backend-config "bucket=${REMOTE_STATE_BUCKET}" \
-  -backend-config "key=shared-ses-infra/cloudflare" \
+  -backend-config "key=shared-platform/cloudflare" \
   -backend-config "region=${AWS_DEFAULT_REGION}"
 terraform plan -var-file=environments/prod/terraform.tfvars
 ```
