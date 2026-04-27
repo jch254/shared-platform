@@ -33,6 +33,21 @@ output "build_notification_lambda_function_name" {
   value       = module.build_notifier.lambda_function_name
 }
 
+output "codebuild_project_name" {
+  description = "Name of the CodeBuild project that deploys shared-platform."
+  value       = module.codebuild_project.project_name
+}
+
+output "codebuild_project_arn" {
+  description = "ARN of the CodeBuild project that deploys shared-platform."
+  value       = module.codebuild_project.project_arn
+}
+
+output "build_notification_event_rule_arn" {
+  description = "ARN of the shared-platform CodeBuild notification EventBridge rule."
+  value       = module.build_notifier_subscription.event_rule_arn
+}
+
 output "route_keys" {
   description = "All configured route keys."
   value       = keys(var.routes)

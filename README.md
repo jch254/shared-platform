@@ -65,6 +65,9 @@ The current Terraform roots contain:
 - locals
 - outputs
 - imported SES receipt rule modules
+- shared CodeBuild notifier core
+- a CodeBuild project for shared-platform AWS Terraform self-deploys
+- an app-owned EventBridge rule that subscribes the shared-platform CodeBuild project to the shared notifier
 - commented future identity/DNS module examples
 - empty `moved.tf` files for later state-safe migrations
 
@@ -79,6 +82,19 @@ They do not contain or manage:
 - IAM roles/policies
 - Cloudflare DNS records
 
+## Build Deploys
+
+The AWS root creates a `shared-platform` CodeBuild project in `aws_region`. It runs [buildspec.yml](buildspec.yml), which calls [infrastructure/aws/deploy-aws.bash](infrastructure/aws/deploy-aws.bash) and applies only the AWS Terraform root.
+
+Bootstrap is still manual once:
+
+1. Review `infrastructure/aws/environments/prod/terraform.tfvars`.
+2. Run a local/one-off `terraform plan` and `terraform apply` for `infrastructure/aws`.
+3. Confirm the SNS email subscription.
+4. Let the `shared-platform` CodeBuild webhook handle later AWS-root changes.
+
+The Cloudflare root remains manual/scaffold-only until the SES DNS migration has real zone IDs and imported or deliberately recreated DNS records.
+
 `activate` remains `false` on the modeled receipt rule set, so this repo does not manage `aws_ses_active_receipt_rule_set` yet. Namaste and Lush parser endpoints, parser authentication, product behavior, and forwarder implementation details remain app-local.
 
 ## Ownership Boundary
@@ -89,6 +105,8 @@ shared-platform owns:
 - `aws_ses_receipt_rule` `gtd-inbound`
 - `aws_ses_receipt_rule` `music-submission`
 - the shared `shared-platform-build-notifications` SNS topic and formatter Lambda for CodeBuild project notifications
+- the `shared-platform` CodeBuild project that deploys this AWS Terraform root
+- the shared-platform CodeBuild EventBridge notification subscription
 
 Namaste and Lush product stacks must not apply product-local receipt rule or receipt rule set changes that conflict with `shared-inbound-mail-rules`. In particular, do not reactivate product-only rule sets such as `gtd-rules` or `lush-aural-treats-rules` while this shared account routes both apps through `shared-inbound-mail-rules`.
 

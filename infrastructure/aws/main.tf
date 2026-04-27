@@ -3,9 +3,16 @@ provider "aws" {
 }
 
 provider "aws" {
+  alias  = "platform"
+  region = var.aws_region
+}
+
+provider "aws" {
   alias  = "build_notifier"
   region = local.build_notifier_region
 }
+
+data "aws_caller_identity" "current" {}
 
 locals {
   build_notifier_region = coalesce(var.build_notifier_region, var.aws_region)
@@ -105,15 +112,234 @@ module "music_submission_rule" {
 }
 
 module "build_notifier" {
-  source = "github.com/jch254/terraform-modules//build-notifier?ref=1.8.1"
+  source = "github.com/jch254/terraform-modules//build-notifier?ref=1.8.2"
 
   providers = {
     aws = aws.build_notifier
   }
 
-  name               = "shared-platform"
+  name               = var.name
   environment        = var.environment
   notification_email = var.build_notification_email
+}
+
+resource "aws_iam_role" "codebuild_role" {
+  provider = aws.platform
+  name     = "${var.name}-codebuild"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "codebuild.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.name}-codebuild"
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy" "codebuild_policy" {
+  provider = aws.platform
+  name     = "${var.name}-codebuild"
+  role     = aws_iam_role.codebuild_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetBucketLocation",
+          "s3:ListBucket",
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.remote_state_bucket}",
+          "arn:aws:s3:::${var.remote_state_bucket}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sts:GetCallerIdentity"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:CreateReceiptRuleSet",
+          "ses:DeleteReceiptRuleSet",
+          "ses:DescribeReceiptRuleSet",
+          "ses:ListReceiptRuleSets",
+          "ses:DescribeActiveReceiptRuleSet",
+          "ses:CreateReceiptRule",
+          "ses:DeleteReceiptRule",
+          "ses:DescribeReceiptRule",
+          "ses:UpdateReceiptRule",
+          "ses:VerifyDomainIdentity",
+          "ses:GetIdentityVerificationAttributes",
+          "ses:DeleteIdentity",
+          "ses:VerifyDomainDkim",
+          "ses:GetIdentityDkimAttributes",
+          "ses:SetIdentityDkimEnabled"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:CreateTopic",
+          "sns:DeleteTopic",
+          "sns:GetTopicAttributes",
+          "sns:SetTopicAttributes",
+          "sns:Subscribe",
+          "sns:Unsubscribe",
+          "sns:GetSubscriptionAttributes",
+          "sns:ListSubscriptionsByTopic",
+          "sns:ListTagsForResource",
+          "sns:TagResource",
+          "sns:UntagResource"
+        ]
+        Resource = "arn:aws:sns:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:${var.name}-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:CreateFunction",
+          "lambda:DeleteFunction",
+          "lambda:GetFunction",
+          "lambda:GetFunctionConfiguration",
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+          "lambda:ListVersionsByFunction",
+          "lambda:GetPolicy",
+          "lambda:AddPermission",
+          "lambda:RemovePermission",
+          "lambda:ListTags",
+          "lambda:TagResource",
+          "lambda:UntagResource"
+        ]
+        Resource = "arn:aws:lambda:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:function:${var.name}-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:UpdateRole",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:GetRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:PassRole",
+          "iam:TagRole",
+          "iam:UntagRole"
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.name}-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "codebuild:CreateProject",
+          "codebuild:DeleteProject",
+          "codebuild:UpdateProject",
+          "codebuild:BatchGetProjects",
+          "codebuild:CreateWebhook",
+          "codebuild:DeleteWebhook",
+          "codebuild:UpdateWebhook"
+        ]
+        Resource = "arn:aws:codebuild:${var.aws_region}:${data.aws_caller_identity.current.account_id}:project/${var.name}"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "events:PutRule",
+          "events:DeleteRule",
+          "events:DescribeRule",
+          "events:PutTargets",
+          "events:RemoveTargets",
+          "events:ListTargetsByRule",
+          "events:ListTagsForResource",
+          "events:TagResource",
+          "events:UntagResource"
+        ]
+        Resource = "arn:aws:events:${var.aws_region}:${data.aws_caller_identity.current.account_id}:rule/${var.name}-build-notifications"
+      }
+    ]
+  })
+}
+
+module "codebuild_project" {
+  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.8.2"
+
+  providers = {
+    aws = aws.platform
+  }
+
+  name                        = var.name
+  description                 = "Deploy shared-platform Terraform"
+  codebuild_role_arn          = aws_iam_role.codebuild_role.arn
+  build_compute_type          = var.build_compute_type
+  build_docker_image          = var.build_docker_image
+  build_docker_tag            = var.build_docker_tag
+  privileged_mode             = false
+  image_pull_credentials_type = "CODEBUILD"
+  source_type                 = var.source_type
+  source_location             = var.source_location
+  buildspec                   = var.buildspec
+  git_clone_depth             = 1
+  cache_bucket                = var.cache_bucket
+  badge_enabled               = false
+  create_log_group            = false
+  webhook_enabled             = true
+
+  environment_variables = [
+    { name = "AWS_DEFAULT_REGION", value = var.aws_region },
+    { name = "REMOTE_STATE_BUCKET", value = var.remote_state_bucket },
+    { name = "TF_STATE_KEY", value = var.remote_state_key },
+  ]
+
+  tags = {
+    Name        = "${var.name}-codebuild"
+    Environment = var.environment
+  }
+}
+
+module "build_notifier_subscription" {
+  source = "github.com/jch254/terraform-modules//build-notifier-project-subscription?ref=1.8.2"
+
+  providers = {
+    aws = aws.platform
+  }
+
+  name                = var.name
+  environment         = var.environment
+  lambda_function_arn = module.build_notifier.lambda_function_arn
+  github_repo_url     = trimsuffix(var.source_location, ".git")
+
+  codebuild_project_names = [module.codebuild_project.project_name]
 }
 
 # Future identity/DNS module usage remains disabled until existing live SES and

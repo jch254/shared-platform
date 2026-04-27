@@ -1,0 +1,25 @@
+version: 0.2
+
+env:
+  variables:
+    REMOTE_STATE_BUCKET: "jch254-terraform-remote-state"
+  exported-variables:
+    - COMMIT_MESSAGE
+    - COMMIT_SHA
+
+phases:
+  install:
+    commands:
+      - echo Setting up Terraform plugin cache...
+      - export TF_PLUGIN_CACHE_DIR="$HOME/.terraform.d/plugin-cache"
+      - mkdir -p "$TF_PLUGIN_CACHE_DIR"
+
+  build:
+    commands:
+      - export COMMIT_MESSAGE="$(git log -1 --pretty=%s 2>/dev/null || echo '')"
+      - export COMMIT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:-$CODEBUILD_SOURCE_VERSION}"
+      - bash ./infrastructure/aws/deploy-aws.bash
+
+cache:
+  paths:
+    - "/root/.terraform.d/plugin-cache/**/*"

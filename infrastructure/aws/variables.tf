@@ -16,6 +16,66 @@ variable "environment" {
   default     = "prod"
 }
 
+variable "name" {
+  description = "Shared platform resource name prefix."
+  type        = string
+  default     = "shared-platform"
+}
+
+variable "remote_state_bucket" {
+  description = "S3 bucket used for Terraform remote state."
+  type        = string
+  default     = "jch254-terraform-remote-state"
+}
+
+variable "remote_state_key" {
+  description = "S3 key used for this AWS root's Terraform remote state."
+  type        = string
+  default     = "shared-platform/aws"
+}
+
+variable "build_docker_image" {
+  description = "Docker image to use as the CodeBuild build environment."
+  type        = string
+  default     = "jch254/docker-node-terraform-aws"
+}
+
+variable "build_docker_tag" {
+  description = "Docker image tag to use as the CodeBuild build environment."
+  type        = string
+  default     = "22.x-docker"
+}
+
+variable "source_type" {
+  description = "Type of repository that contains the shared-platform source code."
+  type        = string
+  default     = "GITHUB"
+}
+
+variable "source_location" {
+  description = "Location of the shared-platform source code repository."
+  type        = string
+  default     = "https://github.com/jch254/shared-platform.git"
+}
+
+variable "buildspec" {
+  description = "Path to the CodeBuild buildspec file."
+  type        = string
+  default     = "buildspec.yml"
+}
+
+variable "cache_bucket" {
+  description = "S3 bucket/prefix for CodeBuild Terraform plugin cache."
+  type        = string
+  default     = "jch254-codebuild-cache/shared-platform"
+}
+
+variable "build_compute_type" {
+  description = "CodeBuild compute type."
+  type        = string
+  default     = "BUILD_GENERAL1_SMALL"
+}
+
 variable "build_notifier_region" {
   description = "AWS region where the shared CodeBuild notification EventBridge rule and Lambda are deployed. Defaults to aws_region. This should match the region of registered CodeBuild projects."
   type        = string
