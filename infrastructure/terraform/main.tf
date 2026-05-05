@@ -129,189 +129,56 @@ module "build_notifier" {
   notification_email = var.build_notification_email
 }
 
-resource "aws_iam_role" "codebuild_role" {
-  provider = aws.platform
-  name     = "${var.name}-codebuild"
+module "codebuild_terraform_role" {
+  source = "github.com/jch254/terraform-modules//codebuild-terraform-role?ref=1.10.0"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Service = "codebuild.amazonaws.com" }
-        Action    = "sts:AssumeRole"
-      }
-    ]
-  })
+  providers = {
+    aws = aws.platform
+  }
+
+  name        = var.name
+  environment = var.environment
+  policy_name = "${var.name}-codebuild"
+
+  cloudwatch_logs_actions = [
+    "logs:CreateLogGroup",
+    "logs:CreateLogStream",
+    "logs:PutLogEvents",
+  ]
+
+  s3_read_write_resource_arns = [
+    "arn:aws:s3:::${var.remote_state_bucket}",
+    "arn:aws:s3:::${var.remote_state_bucket}/*",
+  ]
+
+  s3_bucket_arns = ["arn:aws:s3:::${local.cache_bucket_name}"]
+  s3_object_arns = [local.cache_bucket_object_arn]
+
+  enable_ses = true
+
+  sns_topic_arns = [
+    "arn:aws:sns:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:${var.name}-*",
+  ]
+
+  lambda_function_arns = [
+    "arn:aws:lambda:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:function:${var.name}-*",
+  ]
+
+  iam_role_arns = [
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.name}-*",
+  ]
+
+  codebuild_project_arns = [
+    "arn:aws:codebuild:${var.aws_region}:${data.aws_caller_identity.current.account_id}:project/${var.name}",
+  ]
+
+  event_rule_arns = [
+    "arn:aws:events:${var.aws_region}:${data.aws_caller_identity.current.account_id}:rule/${var.name}-build-notifications",
+  ]
 
   tags = {
-    Name        = "${var.name}-codebuild"
     Environment = var.environment
   }
-}
-
-resource "aws_iam_role_policy" "codebuild_policy" {
-  provider = aws.platform
-  name     = "${var.name}-codebuild"
-  role     = aws_iam_role.codebuild_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetBucketLocation",
-          "s3:ListBucket",
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject"
-        ]
-        Resource = [
-          "arn:aws:s3:::${var.remote_state_bucket}",
-          "arn:aws:s3:::${var.remote_state_bucket}/*"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetBucketLocation",
-          "s3:ListBucket"
-        ]
-        Resource = "arn:aws:s3:::${local.cache_bucket_name}"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject"
-        ]
-        Resource = local.cache_bucket_object_arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sts:GetCallerIdentity"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ses:CreateReceiptRuleSet",
-          "ses:DeleteReceiptRuleSet",
-          "ses:DescribeReceiptRuleSet",
-          "ses:ListReceiptRuleSets",
-          "ses:DescribeActiveReceiptRuleSet",
-          "ses:CreateReceiptRule",
-          "ses:DeleteReceiptRule",
-          "ses:DescribeReceiptRule",
-          "ses:UpdateReceiptRule",
-          "ses:VerifyDomainIdentity",
-          "ses:GetIdentityVerificationAttributes",
-          "ses:DeleteIdentity",
-          "ses:VerifyDomainDkim",
-          "ses:GetIdentityDkimAttributes",
-          "ses:SetIdentityDkimEnabled"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sns:CreateTopic",
-          "sns:DeleteTopic",
-          "sns:GetTopicAttributes",
-          "sns:SetTopicAttributes",
-          "sns:Subscribe",
-          "sns:Unsubscribe",
-          "sns:GetSubscriptionAttributes",
-          "sns:ListSubscriptionsByTopic",
-          "sns:ListTagsForResource",
-          "sns:TagResource",
-          "sns:UntagResource"
-        ]
-        Resource = "arn:aws:sns:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:${var.name}-*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "lambda:CreateFunction",
-          "lambda:DeleteFunction",
-          "lambda:GetFunction",
-          "lambda:GetFunctionConfiguration",
-          "lambda:UpdateFunctionCode",
-          "lambda:UpdateFunctionConfiguration",
-          "lambda:ListVersionsByFunction",
-          "lambda:GetPolicy",
-          "lambda:AddPermission",
-          "lambda:RemovePermission",
-          "lambda:ListTags",
-          "lambda:TagResource",
-          "lambda:UntagResource"
-        ]
-        Resource = "arn:aws:lambda:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:function:${var.name}-*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "iam:GetRole",
-          "iam:CreateRole",
-          "iam:DeleteRole",
-          "iam:UpdateRole",
-          "iam:ListRolePolicies",
-          "iam:ListAttachedRolePolicies",
-          "iam:GetRolePolicy",
-          "iam:PutRolePolicy",
-          "iam:DeleteRolePolicy",
-          "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy",
-          "iam:PassRole",
-          "iam:TagRole",
-          "iam:UntagRole"
-        ]
-        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.name}-*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "codebuild:CreateProject",
-          "codebuild:DeleteProject",
-          "codebuild:UpdateProject",
-          "codebuild:BatchGetProjects",
-          "codebuild:CreateWebhook",
-          "codebuild:DeleteWebhook",
-          "codebuild:UpdateWebhook"
-        ]
-        Resource = "arn:aws:codebuild:${var.aws_region}:${data.aws_caller_identity.current.account_id}:project/${var.name}"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "events:PutRule",
-          "events:DeleteRule",
-          "events:DescribeRule",
-          "events:PutTargets",
-          "events:RemoveTargets",
-          "events:ListTargetsByRule",
-          "events:ListTagsForResource",
-          "events:TagResource",
-          "events:UntagResource"
-        ]
-        Resource = "arn:aws:events:${var.aws_region}:${data.aws_caller_identity.current.account_id}:rule/${var.name}-build-notifications"
-      }
-    ]
-  })
 }
 
 module "codebuild_project" {
@@ -323,7 +190,7 @@ module "codebuild_project" {
 
   name                               = var.name
   description                        = "Deploy shared-platform Terraform"
-  codebuild_role_arn                 = aws_iam_role.codebuild_role.arn
+  codebuild_role_arn                 = module.codebuild_terraform_role.role_arn
   build_compute_type                 = var.build_compute_type
   build_docker_image                 = var.build_docker_image
   build_docker_tag                   = var.build_docker_tag
