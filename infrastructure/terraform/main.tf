@@ -112,7 +112,7 @@ module "music_submission_rule" {
 }
 
 module "build_notifier" {
-  source = "github.com/jch254/terraform-modules//build-notifier?ref=1.8.2"
+  source = "github.com/jch254/terraform-modules//build-notifier?ref=1.8.3"
 
   providers = {
     aws = aws.build_notifier
