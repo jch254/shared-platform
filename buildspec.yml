@@ -18,7 +18,7 @@ phases:
     commands:
       - export COMMIT_MESSAGE="$(git log -1 --pretty=%s 2>/dev/null || echo '')"
       - export COMMIT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:-$CODEBUILD_SOURCE_VERSION}"
-      - bash ./infrastructure/aws/deploy-aws.bash
+      - bash ./infrastructure/deploy-infrastructure.bash
 
 cache:
   paths:

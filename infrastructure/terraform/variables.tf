@@ -31,7 +31,7 @@ variable "remote_state_bucket" {
 variable "remote_state_key" {
   description = "S3 key used for this AWS root's Terraform remote state."
   type        = string
-  default     = "shared-platform/aws"
+  default     = "shared-platform"
 }
 
 variable "build_docker_image" {

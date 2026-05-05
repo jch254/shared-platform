@@ -8,5 +8,9 @@ terraform {
     }
   }
 
-  backend "s3" {}
+  backend "s3" {
+    bucket = "jch254-terraform-remote-state"
+    key    = "shared-platform"
+    region = "ap-southeast-4"
+  }
 }
