@@ -292,7 +292,7 @@ resource "aws_iam_role_policy" "codebuild_policy" {
 }
 
 module "codebuild_project" {
-  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.8.2"
+  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.8.3"
 
   providers = {
     aws = aws.platform
@@ -328,7 +328,7 @@ module "codebuild_project" {
 }
 
 module "build_notifier_subscription" {
-  source = "github.com/jch254/terraform-modules//build-notifier-project-subscription?ref=1.8.2"
+  source = "github.com/jch254/terraform-modules//build-notifier-project-subscription?ref=1.8.3"
 
   providers = {
     aws = aws.platform
