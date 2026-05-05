@@ -315,28 +315,31 @@ resource "aws_iam_role_policy" "codebuild_policy" {
 }
 
 module "codebuild_project" {
-  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.8.3"
+  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.9.0"
 
   providers = {
     aws = aws.platform
   }
 
-  name                        = var.name
-  description                 = "Deploy shared-platform Terraform"
-  codebuild_role_arn          = aws_iam_role.codebuild_role.arn
-  build_compute_type          = var.build_compute_type
-  build_docker_image          = var.build_docker_image
-  build_docker_tag            = var.build_docker_tag
-  privileged_mode             = false
-  image_pull_credentials_type = "CODEBUILD"
-  source_type                 = var.source_type
-  source_location             = var.source_location
-  buildspec                   = var.buildspec
-  git_clone_depth             = 1
-  cache_bucket                = var.cache_bucket
-  badge_enabled               = false
-  create_log_group            = false
-  webhook_enabled             = true
+  name                               = var.name
+  description                        = "Deploy shared-platform Terraform"
+  codebuild_role_arn                 = aws_iam_role.codebuild_role.arn
+  build_compute_type                 = var.build_compute_type
+  build_docker_image                 = var.build_docker_image
+  build_docker_tag                   = var.build_docker_tag
+  privileged_mode                    = false
+  image_pull_credentials_type        = "CODEBUILD"
+  source_type                        = var.source_type
+  source_location                    = var.source_location
+  buildspec                          = var.buildspec
+  git_clone_depth                    = 1
+  cache_bucket                       = var.cache_bucket
+  badge_enabled                      = false
+  create_log_group                   = false
+  webhook_enabled                    = true
+  environment                        = var.environment
+  build_notifier_lambda_function_arn = module.build_notifier.lambda_function_arn
+  build_notifier_github_repo_url     = trimsuffix(var.source_location, ".git")
 
   environment_variables = [
     { name = "AWS_DEFAULT_REGION", value = var.aws_region },
@@ -348,21 +351,6 @@ module "codebuild_project" {
     Name        = "${var.name}-codebuild"
     Environment = var.environment
   }
-}
-
-module "build_notifier_subscription" {
-  source = "github.com/jch254/terraform-modules//build-notifier-project-subscription?ref=1.8.3"
-
-  providers = {
-    aws = aws.platform
-  }
-
-  name                = var.name
-  environment         = var.environment
-  lambda_function_arn = module.build_notifier.lambda_function_arn
-  github_repo_url     = trimsuffix(var.source_location, ".git")
-
-  codebuild_project_names = [module.codebuild_project.project_name]
 }
 
 # Future identity/DNS module usage remains disabled until existing live SES and

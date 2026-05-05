@@ -45,7 +45,7 @@ output "codebuild_project_arn" {
 
 output "build_notification_event_rule_arn" {
   description = "ARN of the shared-platform CodeBuild notification EventBridge rule."
-  value       = module.build_notifier_subscription.event_rule_arn
+  value       = module.codebuild_project.build_notification_event_rule_arn
 }
 
 output "route_keys" {

@@ -43,10 +43,10 @@ The AWS root also deploys shared CodeBuild notification infrastructure with `ter
 
 - SNS topic and email subscription for CodeBuild notifications
 - Lambda formatter for build success/failure events
-- app-owned EventBridge subscription for the `shared-platform` CodeBuild project
+- app-owned EventBridge subscription for the `shared-platform` CodeBuild project through the `codebuild-project` module
 - outputs for app repos to target with their own EventBridge rules
 
-App repos opt in by creating their own EventBridge rule and Lambda permission with `build-notifier-project-subscription`. Private app repos remain on their local notifiers until their own follow-up migration passes.
+App repos opt in by passing the shared formatter Lambda ARN into `codebuild-project` with `build_notifier_lambda_function_arn`. Private app repos remain on their local notifiers until their own follow-up migration passes.
 
 ## Build Deploys
 
