@@ -81,11 +81,11 @@ Still app-local unless migrated separately:
 - SSM secrets and parser endpoint configuration
 - inbound parser auth, allowlists, dedupe, task/submission creation, confirmations, retries, and outbound provider choices
 
-Future migration work:
+Deferred ownership decisions:
 
-- migrate or import parse-domain SES identities/DKIM only after state ownership is planned
-- migrate or import parse-domain DNS records only after Cloudflare ownership is planned
-- decide whether raw buckets, bucket policies, Lambda permissions, and forwarders remain app-local or move into shared modules
+- parse-domain SES identities/DKIM may move here only after state ownership is planned and imported or moved safely
+- parse-domain DNS records may move here only after Cloudflare ownership is planned and imported or moved safely
+- raw buckets, bucket policies, Lambda permissions, and forwarders remain app-local unless a later shared-module boundary is explicitly chosen
 
 ## Verification
 
@@ -139,4 +139,4 @@ Stop before applying if any plan shows:
 - any private app changes outside SES inbound routing
 - any product parser or business logic being moved into this repo
 
-Future migrations should model and import/move existing state. They should not recreate live SES or DNS resources.
+Any later ownership change should model and import/move existing state. It should not recreate live SES or DNS resources.
