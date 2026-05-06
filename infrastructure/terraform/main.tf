@@ -196,7 +196,7 @@ module "codebuild_terraform_role" {
 }
 
 module "codebuild_project" {
-  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.15.0"
+  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.15.2"
 
   providers = {
     aws = aws.platform
