@@ -148,7 +148,7 @@ module "build_notifier" {
 }
 
 module "codebuild_terraform_role" {
-  source = "github.com/jch254/terraform-modules//codebuild-terraform-role?ref=1.10.0"
+  source = "github.com/jch254/terraform-modules//codebuild-terraform-role?ref=1.12.0"
 
   providers = {
     aws = aws.platform
@@ -174,6 +174,8 @@ module "codebuild_terraform_role" {
 
   enable_ses = true
 
+  # SNS/Lambda live in build_notifier_region, which differs from the codebuild role's
+  # provider region — pass these explicitly rather than via prefix_managed_services.
   sns_topic_arns = [
     "arn:aws:sns:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:${var.name}-*",
   ]
@@ -182,9 +184,7 @@ module "codebuild_terraform_role" {
     "arn:aws:lambda:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:function:${var.name}-*",
   ]
 
-  iam_role_arns = [
-    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.name}-*",
-  ]
+  prefix_managed_services = ["iam_role"]
 
   codebuild_project_arns = [
     "arn:aws:codebuild:${var.aws_region}:${data.aws_caller_identity.current.account_id}:project/${var.name}",
