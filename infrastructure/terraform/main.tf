@@ -95,14 +95,14 @@ locals {
 # Imported-state model: these modules own the live shared SES receipt rule set
 # and receipt rules. Activation remains intentionally unmanaged here.
 module "ses_receipt_rule_set" {
-  source = "github.com/jch254/terraform-modules//ses-receipt-rule-set?ref=1.6.0"
+  source = "github.com/jch254/terraform-modules//ses-receipt-rule-set?ref=1.15.0"
 
   name     = "shared-inbound-mail-rules"
   activate = false
 }
 
 module "gtd_inbound_rule" {
-  source = "github.com/jch254/terraform-modules//ses-receipt-rule?ref=1.6.0"
+  source = "github.com/jch254/terraform-modules//ses-receipt-rule?ref=1.15.0"
 
   name                   = local.modeled_routes.gtd_inbound.name
   rule_set_name          = module.ses_receipt_rule_set.name
@@ -119,7 +119,7 @@ module "gtd_inbound_rule" {
 }
 
 module "music_submission_rule" {
-  source = "github.com/jch254/terraform-modules//ses-receipt-rule?ref=1.6.0"
+  source = "github.com/jch254/terraform-modules//ses-receipt-rule?ref=1.15.0"
 
   name                   = local.modeled_routes.music_submission.name
   rule_set_name          = module.ses_receipt_rule_set.name
@@ -136,7 +136,7 @@ module "music_submission_rule" {
 }
 
 module "build_notifier" {
-  source = "github.com/jch254/terraform-modules//build-notifier?ref=1.8.4"
+  source = "github.com/jch254/terraform-modules//build-notifier?ref=1.15.0"
 
   providers = {
     aws = aws.build_notifier
@@ -148,7 +148,7 @@ module "build_notifier" {
 }
 
 module "codebuild_terraform_role" {
-  source = "github.com/jch254/terraform-modules//codebuild-terraform-role?ref=1.12.0"
+  source = "github.com/jch254/terraform-modules//codebuild-terraform-role?ref=1.15.0"
 
   providers = {
     aws = aws.platform
@@ -196,7 +196,7 @@ module "codebuild_terraform_role" {
 }
 
 module "codebuild_project" {
-  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.13.0"
+  source = "github.com/jch254/terraform-modules//codebuild-project?ref=1.15.0"
 
   providers = {
     aws = aws.platform
@@ -234,7 +234,7 @@ module "codebuild_project" {
 # module "parse_domain_identity" {
 #   for_each = local.enabled_routes
 #
-#   source = "github.com/jch254/terraform-modules//ses-domain-identity?ref=1.6.0"
+#   source = "github.com/jch254/terraform-modules//ses-domain-identity?ref=1.15.0"
 #
 #   domain = each.value.parse_domain
 #   tags = {
