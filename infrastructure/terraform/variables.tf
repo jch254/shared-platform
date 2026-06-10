@@ -82,6 +82,12 @@ variable "build_notifier_region" {
   default     = null
 }
 
+variable "build_notifier_secondary_region" {
+  description = "Second region with its own build-notifier core, for CodeBuild projects that live outside build_notifier_region (EventBridge can only invoke a same-region Lambda)."
+  type        = string
+  default     = "ap-southeast-2"
+}
+
 variable "build_notification_email" {
   description = "Email address subscribed to shared CodeBuild success/failure notifications."
   type        = string

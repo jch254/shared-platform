@@ -33,6 +33,26 @@ output "build_notification_lambda_function_name" {
   value       = module.build_notifier.lambda_function_name
 }
 
+output "build_notifier_secondary_region" {
+  description = "Second region with its own build-notifier core for CodeBuild projects outside build_notifier_region."
+  value       = var.build_notifier_secondary_region
+}
+
+output "build_notification_secondary_topic_arn" {
+  description = "SNS topic ARN for CodeBuild notifications in the secondary region."
+  value       = module.build_notifier_secondary.sns_topic_arn
+}
+
+output "build_notification_secondary_lambda_function_arn" {
+  description = "Secondary-region CodeBuild notification formatter Lambda function ARN."
+  value       = module.build_notifier_secondary.lambda_function_arn
+}
+
+output "build_notification_secondary_lambda_function_name" {
+  description = "Secondary-region CodeBuild notification formatter Lambda function name."
+  value       = module.build_notifier_secondary.lambda_function_name
+}
+
 output "codebuild_project_name" {
   description = "Name of the CodeBuild project that deploys shared-platform."
   value       = module.codebuild_project.project_name

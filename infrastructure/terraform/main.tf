@@ -30,6 +30,17 @@ provider "aws" {
   }
 }
 
+provider "aws" {
+  alias  = "build_notifier_secondary"
+  region = var.build_notifier_secondary_region
+
+  default_tags {
+    tags = {
+      Environment = var.environment
+    }
+  }
+}
+
 data "aws_caller_identity" "current" {}
 
 locals {
@@ -147,6 +158,23 @@ module "build_notifier" {
   notification_email = var.build_notification_email
 }
 
+# Second build-notifier core for CodeBuild projects outside build_notifier_region
+# (currently discogs-market-monitor in ap-southeast-2). EventBridge can only
+# invoke a same-region Lambda, so each region hosting CodeBuild projects needs
+# its own formatter + topic. The region suffix in the name keeps the module's
+# IAM role name (account-global) from colliding with the primary core's.
+module "build_notifier_secondary" {
+  source = "github.com/jch254/terraform-modules//build-notifier?ref=1.15.0"
+
+  providers = {
+    aws = aws.build_notifier_secondary
+  }
+
+  name               = "${var.name}-${var.build_notifier_secondary_region}"
+  environment        = var.environment
+  notification_email = var.build_notification_email
+}
+
 module "codebuild_terraform_role" {
   source = "github.com/jch254/terraform-modules//codebuild-terraform-role?ref=1.15.0"
 
@@ -174,14 +202,17 @@ module "codebuild_terraform_role" {
 
   enable_ses = true
 
-  # SNS/Lambda live in build_notifier_region, which differs from the codebuild role's
-  # provider region — pass these explicitly rather than via prefix_managed_services.
+  # SNS/Lambda live in build_notifier_region (plus the secondary-region core),
+  # which differs from the codebuild role's provider region — pass these
+  # explicitly rather than via prefix_managed_services.
   sns_topic_arns = [
     "arn:aws:sns:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:${var.name}-*",
+    "arn:aws:sns:${var.build_notifier_secondary_region}:${data.aws_caller_identity.current.account_id}:${var.name}-*",
   ]
 
   lambda_function_arns = [
     "arn:aws:lambda:${local.build_notifier_region}:${data.aws_caller_identity.current.account_id}:function:${var.name}-*",
+    "arn:aws:lambda:${var.build_notifier_secondary_region}:${data.aws_caller_identity.current.account_id}:function:${var.name}-*",
   ]
 
   prefix_managed_services = ["iam_role"]
