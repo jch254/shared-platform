@@ -10,3 +10,4 @@ override.tf.json
 *.tfstate
 *.tfstate.*
 .DS_Store
+.history/
